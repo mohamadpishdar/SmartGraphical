@@ -1,31 +1,114 @@
-# SmartGraphical
-SmartGraphical: a Solidity Contract Logical Vulnerability Scanner and Graphical representation
+# \# SmartGraphical
 
-# How to Use:
-Python SmartGraphical.py ContractFile (ex: python SmartGraphical.py contract1.sol)
+# 
 
-# SmartGraphical checks the Tasks below:
+# SmartGraphical is a pattern-based static analysis tool for detecting logical vulnerabilities in Solidity smart contracts. Unlike syntax-oriented scanners that target reentrancy and arithmetic errors, SmartGraphical focuses on business-logic flaws that arise from defective contract design rather than from incorrect code syntax. The tool combines automated heuristic detection with a graphical representation of a contract's functional dependencies, allowing a developer to inspect flagged code within its structural context before deciding whether a warning reflects a genuine issue.
 
-Task 1: The signatures associated with the function definitions in every function of the smart contract code must be examined and updated if the contract is the outcome of a rewrite or update of another contract. If this isn't done, the contract may have a logical issue, and information from the previous signature may be given to the functions using the programmer\'s imagination. This inevitably indicates that the contract code contains a runtime error.\n \
+# 
 
-Task 2: In the event that the developer modifies contract parameters, such as the maximum fee or user balance, or other elements, like totalSupply, that are determined by another contract. This could be risky and result in warnings being generated. Generally speaking, obtaining any value from a source outside the contract may have a different value under various circumstances, which could lead to a smart contract logical error. For instance, the programmer might not have incorporated the input's fluctuation or range into the program logic
+# This repository accompanies the paper \*SmartGraphical Detects Logical Vulnerabilities in Smart Contracts via Pattern-Based Static Analysis and Human-in-the-Loop Review\*, and contains the tool itself along with the benchmark data, comparison results, and supplementary material described in that paper.
 
-Task 3: The quantity of collateral determines one of the typical actions in DeFi smart contracts, in addition to stake and unstake. Attacks like multiple borrowing without collateral might result from logical mistakes made by the developer when releasing this collateral, determining the maximum loan amount that can be given, and determining the kind and duration of the collateral encumbrance
+# 
 
-Tasks 3 and 5 and 9: When a smart contract receives value, like financial tokens or game points (from staking assets, depositing points, or depositing tokens), it must perform a logical check when the assets are removed from the system to ensure that no user can circumvent the program's logic and take more money out of the contract than they are actually entitled to.
+# \## How the Tool Works
 
-Tasks 2 and 4: All token supply calculations must be performed accurately and completely. Even system security and authentication might be taken into account, but the communication method specification is entirely incorrect. For instance, one of the several errors made by developers has been the presence of a function like burn that can remove tokens from the pool or functions identical to it that can add tokens to the pool. To determine whether this is necessary in terms of program logic and whether other supply changes are taken into account in this computation, these conditions should be looked at. No specific function is required, and burning tokens can be moved to an address as a transaction without being returned. 
+# 
 
-Task 2 and 5 and 9: There are various incentive aspects in many smart contracts that defy logic. For instance, if the smart contract has a point system for burning tokens, is it possible to use that point in other areas of the contract? It is crucial to examine the income and spending points in this situation. For instance, the developer can permit spending without making sure the user validates the point earning. The program logic may be abused as a result of this. 
+# SmartGraphical parses a Solidity source file and checks it against eleven heuristic categories, grouped into four broader concerns:
 
-Task 6: The code's error conditions need to be carefully examined. For instance, a logical error and a serious blow to the smart contract can result from improperly validating the error circumstances. Assume, for instance, that the programmer uses a system function to carry out a non-deterministic transport, but its error management lacks a proper understanding of the system state. In the event of an error, for instance, the coder attempts to reverse the system state; however, this may not be logically sound and could result in misuse of the smart contract by, for instance, reproducing an unauthorized activity in the normal state. 
+# 
 
-Task 7: Logical errors can result from any complicated coding calculations. For instance, a cyber attacker may exploit the program logic by forcing their desired computation output if the coder fails to properly analyze the code output under various scenarios. \n \
+# \*\*External dependency and state integrity.\*\* The tool flags critical values, such as total supply or fee parameters, that are derived from an external contract without adequate range checks, and it examines whether arbitrary mint or burn operations remain consistent with the contract's own accounting.
 
-Tasks 8 and 9: A smart contract's execution output might be impacted by the sequence in which certain procedures are carried out. The developer measuring or calculating the price of a token (or anything similar) and then transferring the asset at a certain time period is one of the most prevalent examples of this kind of vulnerability. Given that the attacker can manipulate the market through fictitious fluctuations, this is a logical issue. Thus, this gives the attacker the ability to remove the asset from the agreement. 
+# 
 
-Task 10: In a smart contract, using names that are spelled similarly to one another may cause logical issues. For instance, the coder might inadvertently substitute one of these definitions for another in the contract, which would be undetectable during the coder's initial tests. There is a chance that a cybercriminal will take advantage of this scenario. 
+# \*\*Transactional and economic logic.\*\* Deposit and withdrawal functions are checked for consistency, so that a user cannot withdraw more than a legitimate balance permits. Internal reward or point systems are checked for an earn-before-spend ordering. Asset transfers that depend on a price value are checked for the possibility that the price and the transfer become decoupled, which is the pattern behind many flash-loan and sandwich-attack exploits.
 
-Task 11: A smart contract's function that can be called fully publicly and without limitations may be risky and necessitate additional research from the developer if it modifies variables, delivers inventory, or does something similar
+# 
 
+# \*\*Computational and operational flaws.\*\* The tool highlights complex multi-step calculations for manual review, checks whether non-deterministic system calls such as low-level calls are handled with a logically sound error-recovery path, and flags public functions that alter critical state without an access-control modifier.
+
+# 
+
+# \*\*Semantic and maintenance errors.\*\* When a contract appears to be a rewrite of an earlier version, the tool checks whether function signatures still match across versions. It also flags variable or function names that are similar enough to one another that a developer could substitute one for the other by mistake.
+
+# 
+
+# Each of these checks produces a heuristic alert rather than a confirmed finding. The design assumption behind SmartGraphical is that a human reviewer, working from the tool's graphical representation of the contract, is far better positioned than an automated system alone to judge whether a given alert corresponds to a real logical flaw or to an intentional and safe design choice.
+
+# 
+
+# \## Usage
+
+# 
+
+# ```bash
+
+# python SmartGraphical.py <path-to-contract>.sol
+
+# ```
+
+# 
+
+# Running the script presents a menu of the eleven detection tasks described above, along with an option to run all tasks at once and an option to render the contract's dependency graph.
+
+# 
+
+# \## Repository Structure
+
+# 
+
+# | Path | Contents |
+
+# |---|---|
+
+# | `SmartGraphical.py` | The tool itself. |
+
+# | `SimpleAuction.sol` | The worked example used throughout the paper to illustrate the tool's graphical output. |
+
+# | `Test contracts.zip` | A small set of additional contracts used during development. |
+
+# | `Benchmark/` | The full 100-contract benchmark dataset referenced in the paper, split into a training subset used to design the heuristics and a held-out subset reserved for evaluation. |
+
+# | `SYFI-FORM.7z` | Source code for the two real-world case-study contracts (SYFI and FORM) discussed in the paper's case-study section, along with the raw output of Slither and Mythril when run directly against this code. |
+
+# | `LLMs results/` | Raw, unedited output from Claude Sonnet 5 and Gemini Flash 3.5 when each model was given the held-out benchmark contracts and asked to identify security issues, with no prior knowledge of the reported vulnerability. |
+
+# | `Tables results/` | The underlying spreadsheets for the detection-comparison and alert-precision tables reported in the paper, including the per-case reasoning behind each true-positive or false-negative classification. |
+
+# | `Survey Results.zip` | Anonymized responses from the developer user study described in the paper. No names, contact details, or other personally identifiable information were collected at any stage of the study. |
+
+# 
+
+# \## Citation
+
+# 
+
+# If you use this tool or the accompanying data, please cite the paper:
+
+# 
+
+# ```bibtex
+
+# @article{pishdar2026smartgraphical,
+
+# &#x20; title   = {SmartGraphical Detects Logical Vulnerabilities in Smart Contracts via Pattern-Based Static Analysis and Human-in-the-Loop Review},
+
+# &#x20; author  = {Pishdar, Mohammad and Fattahdizaji, Ali and Shukur, Zarina},
+
+# &#x20; journal = {Scientific Reports},
+
+# &#x20; year    = {2026}
+
+# }
+
+# ```
+
+# 
+
+# \## License
+
+# 
+
+# See the repository's license file for terms of use.
 
